@@ -6,7 +6,7 @@
         "node": "24.x"
     },
     "scripts": {
-        "heroku-postbuild": "cd client && npm install && npm run build",
+        "heroku-postbuild": "cd server && npm install && cd ../client && npm install --include=dev && npm run build",
         "start": "node server/server.js",
         "install-server": "cd server && npm install",
         "install-client": "cd client && npm install",
