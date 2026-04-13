@@ -35,6 +35,11 @@ function DashboardPage({ onNavigate }) {
             title: 'Reports',
             description: 'Review sales, instructor activity, customer status, and teacher payments.'
         }
+        {
+            key: 'schedule',
+            title: 'Schedule',
+            description: 'View the current class schedule by day, time, instructor, and type.'
+        },
     ];
 
     return (

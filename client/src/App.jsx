@@ -4,6 +4,7 @@ import InstructorPage from './pages/InstructorPage';
 import CustomerPage from './pages/CustomerPage';
 import PackagePage from './pages/PackagePage';
 import ClassPage from './pages/ClassPage';
+import SchedulePage from './pages/SchedulePage';
 import SalePage from './pages/SalePage';
 import AttendancePage from './pages/AttendancePage';
 import ReportsPage from './pages/ReportsPage';
@@ -17,6 +18,7 @@ function App() {
     { key: 'customers', label: 'Customers' },
     { key: 'packages', label: 'Packages' },
     { key: 'classes', label: 'Classes' },
+    { key: 'schedule', label: 'Schedule' },
     { key: 'sales', label: 'Sales' },
     { key: 'attendance', label: 'Attendance' },
     { key: 'reports', label: 'Reports' }
@@ -62,6 +64,7 @@ function App() {
         {currentPage === 'customers' && <CustomerPage />}
         {currentPage === 'packages' && <PackagePage />}
         {currentPage === 'classes' && <ClassPage />}
+        {currentPage === 'schedule' && <SchedulePage />}
         {currentPage === 'sales' && <SalePage />}
         {currentPage === 'attendance' && <AttendancePage />}
         {currentPage === 'reports' && <ReportsPage />}
