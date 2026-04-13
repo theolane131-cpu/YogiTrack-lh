@@ -34,7 +34,7 @@ function DashboardPage({ onNavigate }) {
             key: 'reports',
             title: 'Reports',
             description: 'Review sales, instructor activity, customer status, and teacher payments.'
-        }
+        },
         {
             key: 'schedule',
             title: 'Schedule',
