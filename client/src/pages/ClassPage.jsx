@@ -18,6 +18,45 @@ function ClassPage() {
     const [editId, setEditId] = useState(null);
     const [errors, setErrors] = useState({});
 
+    const timeOptions = [
+        '06:00 AM',
+        '07:00 AM',
+        '08:00 AM',
+        '09:00 AM',
+        '10:00 AM',
+        '11:00 AM',
+        '12:00 PM',
+        '01:00 PM',
+        '02:00 PM',
+        '03:00 PM',
+        '04:00 PM',
+        '05:00 PM',
+        '06:00 PM',
+        '07:00 PM',
+        '08:00 PM'
+    ];
+
+    const normalizeTime = (time) => {
+        if (!time) return '';
+
+        let cleaned = time.toString().trim().toUpperCase();
+        cleaned = cleaned.replace(/\s+/g, '');
+
+        const match = cleaned.match(/^(\d{1,2})(?::?(\d{2}))?(AM|PM)$/);
+
+        if (!match) {
+            return time;
+        }
+
+        let hour = match[1];
+        const minutes = match[2] || '00';
+        const period = match[3];
+
+        hour = hour.padStart(2, '0');
+
+        return `${hour}:${minutes} ${period}`;
+    };
+
     const fetchClasses = async () => {
         try {
             const response = await API.get('/api/classes');
@@ -46,18 +85,16 @@ function ClassPage() {
 
         if (!formData.classId.trim()) {
             newErrors.classId = 'Class ID is required.';
-        }
-
-        if (!formData.classId.startsWith('CL')) {
-            newErrors.classId = 'Class ID must start with "CL" (example: CL001)';
+        } else if (!formData.classId.startsWith('CL')) {
+            newErrors.classId = 'Class ID must start with "CL" (example: CL001).';
         }
 
         if (!formData.instructorId) {
             newErrors.instructorId = 'Please select an instructor.';
         }
 
-        if (!formData.time.trim()) {
-            newErrors.time = 'Time is required.';
+        if (!formData.time) {
+            newErrors.time = 'Please select a class time.';
         }
 
         if (formData.payRate === '' || Number(formData.payRate) < 0) {
@@ -65,6 +102,24 @@ function ClassPage() {
         }
 
         return newErrors;
+    };
+
+    const checkFrontendScheduleWarning = () => {
+        const matchingClass = classes.find((yogaClass) => {
+            const sameRecord = editId && yogaClass._id === editId;
+
+            return (
+                !sameRecord &&
+                yogaClass.day === formData.day &&
+                normalizeTime(yogaClass.time) === normalizeTime(formData.time)
+            );
+        });
+
+        if (matchingClass) {
+            return `Warning: ${matchingClass.classId} is already scheduled on ${formData.day} at ${normalizeTime(formData.time)}.`;
+        }
+
+        return '';
     };
 
     const handleChange = (event) => {
@@ -79,6 +134,11 @@ function ClassPage() {
             ...prevErrors,
             [name]: ''
         }));
+
+        if (messageType === 'error') {
+            setMessage('');
+            setMessageType('');
+        }
     };
 
     const handleSubmit = async (event) => {
@@ -93,23 +153,26 @@ function ClassPage() {
             return;
         }
 
+        const frontendWarning = checkFrontendScheduleWarning();
+
+        if (frontendWarning) {
+            setMessage(frontendWarning);
+            setMessageType('error');
+            return;
+        }
+
         try {
             const payload = {
                 ...formData,
+                time: normalizeTime(formData.time),
                 payRate: Number(formData.payRate)
             };
 
             if (editId) {
-                const response = await API.put(
-                    `/api/classes/${editId}`,
-                    payload
-                );
+                const response = await API.put(`/api/classes/${editId}`, payload);
                 setMessage(`Class updated: ${response.data.classId}`);
             } else {
-                const response = await API.post(
-                    '/api/classes',
-                    payload
-                );
+                const response = await API.post('/api/classes', payload);
                 setMessage(`Class saved: ${response.data.classId}`);
             }
 
@@ -155,7 +218,7 @@ function ClassPage() {
             classId: yogaClass.classId,
             instructorId: yogaClass.instructorId,
             day: yogaClass.day,
-            time: yogaClass.time,
+            time: normalizeTime(yogaClass.time),
             classType: yogaClass.classType,
             payRate: yogaClass.payRate
         });
@@ -166,10 +229,36 @@ function ClassPage() {
         setMessageType('success');
     };
 
+    const handleCancelEdit = () => {
+        setEditId(null);
+        setErrors({});
+        setMessage('');
+        setMessageType('');
+
+        setFormData({
+            classId: '',
+            instructorId: '',
+            day: 'Monday',
+            time: '',
+            classType: 'General',
+            payRate: ''
+        });
+    };
+
+    const getInstructorName = (instructorId) => {
+        const instructor = instructors.find((inst) => inst.instructorId === instructorId);
+
+        if (!instructor) {
+            return instructorId;
+        }
+
+        return `${instructor.firstName} ${instructor.lastName}`;
+    };
+
     const isFormIncomplete =
         !formData.classId.trim() ||
         !formData.instructorId ||
-        !formData.time.trim() ||
+        !formData.time ||
         formData.payRate === '';
 
     return (
@@ -179,6 +268,9 @@ function ClassPage() {
             <div className="page-container">
                 <div className="section-card">
                     <h3>{editId ? 'Edit Class' : 'Add Class'}</h3>
+                    <p className="helper-text">
+                        Schedule classes by assigning an instructor, selecting a day, and choosing a standard time slot.
+                    </p>
 
                     <form onSubmit={handleSubmit}>
                         <div>
@@ -189,6 +281,7 @@ function ClassPage() {
                                 value={formData.classId}
                                 onChange={handleChange}
                                 className={errors.classId ? 'input-error' : ''}
+                                placeholder="CL001"
                             />
                             {errors.classId && <div className="field-error">{errors.classId}</div>}
                         </div>
@@ -230,14 +323,19 @@ function ClassPage() {
 
                         <div>
                             <label>Time:</label><br />
-                            <input
-                                type="text"
+                            <select
                                 name="time"
                                 value={formData.time}
                                 onChange={handleChange}
-                                placeholder="09:00 AM"
                                 className={errors.time ? 'input-error' : ''}
-                            />
+                            >
+                                <option value="">Select Time</option>
+                                {timeOptions.map((time) => (
+                                    <option key={time} value={time}>
+                                        {time}
+                                    </option>
+                                ))}
+                            </select>
                             {errors.time && <div className="field-error">{errors.time}</div>}
                         </div>
 
@@ -268,6 +366,16 @@ function ClassPage() {
                         <button type="submit" disabled={isFormIncomplete}>
                             {editId ? 'Update Class' : 'Save Class'}
                         </button>
+
+                        {editId && (
+                            <button
+                                type="button"
+                                onClick={handleCancelEdit}
+                                style={{ marginLeft: '10px' }}
+                            >
+                                Cancel Edit
+                            </button>
+                        )}
                     </form>
 
                     {message && (
@@ -279,22 +387,29 @@ function ClassPage() {
 
                 <div className="section-card">
                     <h3>Class List</h3>
+                    <p className="helper-text">
+                        Existing classes are listed below. The system prevents duplicate day/time scheduling conflicts.
+                    </p>
 
-                    <ul className="record-list">
-                        {classes.map((yogaClass) => (
-                            <li key={yogaClass._id}>
-                                {yogaClass.classId} - {yogaClass.day} at {yogaClass.time} - {yogaClass.classType} - Instructor: {yogaClass.instructorId}
+                    {classes.length === 0 ? (
+                        <p>No classes found.</p>
+                    ) : (
+                        <ul className="record-list">
+                            {classes.map((yogaClass) => (
+                                <li key={yogaClass._id}>
+                                    {yogaClass.classId} - {yogaClass.day} at {normalizeTime(yogaClass.time)} - {yogaClass.classType} - Instructor: {getInstructorName(yogaClass.instructorId)}
 
-                                <button onClick={() => handleEdit(yogaClass)} className="inline-button">
-                                    Edit
-                                </button>
+                                    <button onClick={() => handleEdit(yogaClass)} className="inline-button">
+                                        Edit
+                                    </button>
 
-                                <button onClick={() => handleDelete(yogaClass._id)} className="inline-button">
-                                    Delete
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
+                                    <button onClick={() => handleDelete(yogaClass._id)} className="inline-button">
+                                        Delete
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </div>
             </div>
         </div>
